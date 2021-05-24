@@ -4,7 +4,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 _TIMESTEP = 0.001
+_NUMFRAMES = 1000
+_NUMSTEPS = 100
+_DETAIL = 400
 _GRAV = 1
+
+
+def rescale(n,a,b,c,d):
+    return (((n - a) * (d - c)) / (b - a)) + c
 
 
 class Pendulum():
@@ -62,32 +69,72 @@ class Pendulum():
         return ret
 
     def vars(self):
-        return {t1:self.t1,t2:self.t2,dt1:self.dt1,dt2:self.dt2,a1:self.a1,a2:self.a2}
+        return dict(t1=self.t1,t2=self.t2,dt1=self.dt1,dt2=self.dt2,a1=self.a1,a2=self.a2)
 
     def toCSV(self):
         return ", ".join((str)(n) for n in self.vars())
 
+    def color(self):
+        r = (int)(rescale(self.t1,-1*_PI,_PI,0,255))
+        g = 128
+        b = (int)(rescale(self.t2,-1*_PI,_PI,0,255))
+        return (r,g,b)
+
+class Fractal():
+    def __init__(self,path,w,h=-1):
+        self.path = path
+        if(h == -1):
+            h = w
+        self.w = w
+        self.h = h
+        self.frame = 0
+        self.frames = []
+        self.pends = []
+        for x in range(self.w):
+            t1 = -1*_PI + 2*_PI*(x/self.w)
+            row = []
+            for y in range(self.h):
+                t2 = -1*_PI + 2*_PI*(y/self.h)
+                row.append(Pendulum(t1,t2))
+            self.pends.append(row)
+
+    def image(self):
+        with open(self.path + (str)(self.frame) + ".ppm","w") as im:
+            im.write("P3\n" + (str)(self.w) + " " + (str)(self.h) + "\n255\n")
+            for y in range(self.h):
+                for x in range(self.w):
+                    c = self.pends[x][y].color()
+                    im.write(" ".join((str)(i) for i in c))
+                    im.write("  ")
+                im.write("\n")
+
+    def step(self):
+        self.image()
+        for i in range(_NUMSTEPS):
+            for x in range(self.w):
+                for y in range(self.h):
+                    self.pends[x][y].step()
+        self.frame += 1
+        
+                
 def plotData(data):
-    plt.plot(data.t1,data.t2)
+    d1 = []
+    d2 = []
+    for i in range(len(data)):
+        d1.append(data[i]['t1'])
+        d2.append(data[i]['t2'])
+    plt.plot(np.array(d1),np.array(d2))
     plt.xlabel("theta1")
     plt.ylabel("theta2")
-    
-
-def main():
-    p = Pendulum(_PI/6,0)
-    data = []
-    for i in range(100000):
-        p.step()
-        data.append(p.vars)
-
-    plotData(data)
+    plt.show()
     #plt.plot(range(len(data1)),data1,label="theta1")
     #plt.plot(range(len(data2)),data2,label="theta2")
-    plt.plot(data1,data2)
-    plt.xlabel('time')
-    plt.ylabel('angle')
-    #plt.legend()
-    plt.show()
+
+def main():
+    F = Fractal("save/",_DETAIL)
+    for i in range(_NUMFRAMES):
+        print(i/_NUMFRAMES)
+        F.step()
 
 if __name__=="__main__":
     main()
